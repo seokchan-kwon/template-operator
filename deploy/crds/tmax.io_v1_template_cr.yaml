@@ -1,0 +1,7 @@
+apiVersion: tmax.io/v1
+kind: Template
+metadata:
+  name: example-template
+spec:
+  # Add fields here
+  size: 3

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: template-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: template-operator
+  template:
+    metadata:
+      labels:
+        name: template-operator
+    spec:
+      serviceAccountName: template-operator
+      containers:
+        - name: template-operator
+          # Replace this with the built image name
+          image: 192.168.6.76:5000/template
+          command:
+          - template-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "template-operator"
