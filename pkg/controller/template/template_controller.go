@@ -2,6 +2,7 @@ package template
 
 import (
 	"context"
+	"fmt"
 
 	tmaxv1 "template-operator/pkg/apis/tmax/v1"
 
@@ -104,6 +105,10 @@ func (r *ReconcileTemplate) Reconcile(request reconcile.Request) (reconcile.Resu
 			return reconcile.Result{}, err
 		}
 	}
+
+	test := instance.Spec.Plans
+	str := fmt.Sprintf("%s", test[0].Fields.Raw)
+	reqLogger.Info("********** plan fields test ** : " + str);
 
 	return reconcile.Result{}, nil
 }
