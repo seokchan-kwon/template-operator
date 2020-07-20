@@ -2,7 +2,7 @@ package template
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 
 	tmaxv1 "template-operator/pkg/apis/tmax/v1"
 
@@ -16,6 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	crdapi "github.com/kubernetes-client/go/kubernetes/client"   
+	"github.com/kubernetes-client/go/kubernetes/config"
+
+	"github.com/tidwall/gjson"
 )
 
 var log = logf.Log.WithName("controller_template")
@@ -99,34 +104,44 @@ func (r *ReconcileTemplate) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// set objectsKind field
-	if setObjectKindsField(instance) {
-		if err = r.client.Update(context.TODO(), instance); err != nil {
-			return reconcile.Result{}, err
+	// controller에서 struct를 정의 하지 않고 들어간 정보들을 가져오면 null값을 가져와서 임시 customObjectApi 사용
+	// ex) template_types.go를 보면 objects, plans field가 interface처럼 사용되는데,
+	// tempalte cr을 만들때 위의 field에 값을 채워너도 controller에서는 null로 받아들임...
+
+	templateNameSpace := request.Namespace
+	templateName := request.Name
+
+	c, err := config.LoadKubeConfig()
+	if err != nil {
+		return reconcile.Result{},err
+	}
+	clientset := crdapi.NewAPIClient(c)
+
+	cr,_,err := clientset.CustomObjectsApi.GetNamespacedCustomObject(context.Background(),"tmax.io","v1",templateNameSpace,"templates",templateName);
+	if err != nil {
+		panic("===[ Template Error ] : " + err.Error())
+	}
+
+	// map[string]interface{} to []byte
+	convert, err := json.Marshal(cr)
+	if err != nil {
+		panic("===[ Marshal Error ] : " + err.Error())
+	}
+
+	// add kind to objectKinds fields
+	var objectKinds []string
+	result := gjson.Get(string(convert), "spec.objects.#.kind")
+	for _, kind := range result.Array() {
+		if len(kind.String()) != 0 {
+			objectKinds = append(objectKinds, kind.String());
 		}
 	}
 
-	test := instance.Spec.Plans
-	str := fmt.Sprintf("%s", test[0].Fields.Raw)
-	reqLogger.Info("********** plan fields test ** : " + str);
+	// update
+	instance.Spec.ObjectKinds = objectKinds
+	if err = r.client.Update(context.TODO(), instance); err != nil {
+		return reconcile.Result{}, err
+	}
 
 	return reconcile.Result{}, nil
-}
-
-func setObjectKindsField(t *tmaxv1.Template) bool {
-	if t.Spec.Objects == nil || len(t.Spec.Objects) == 0 {
-		return false
-	}
-
-	var objectKinds []string
-	for _, object := range t.Spec.Objects {
-		objectKinds = append(objectKinds, object.Kind);
-	}
-
-	if len(objectKinds) == 0 {
-		return false
-	}
-
-	t.Spec.ObjectKinds = objectKinds
-	return true
 }
