@@ -104,6 +104,11 @@ func (r *ReconcileTemplate) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	// types.go에서 struct의 type을 map[]interface{}, interface{}가 제공이 안된다. 
+	// 임시로 objects, plans field에 Fields metav1.FieldsV1 `json:"fields,omitempty"` 라는 값 추가해서 사용
+	// CRD generation : map values must be a named type, not *ast.StarExpr #2485
+	// map values must be a named type #287
+
 	// controller에서 struct를 정의 하지 않고 들어간 정보들을 가져오면 null값을 가져와서 임시 customObjectApi 사용
 	// ex) template_types.go를 보면 objects, plans field가 interface처럼 사용되는데,
 	// tempalte cr을 만들때 위의 field에 값을 채워너도 controller에서는 null로 받아들임...
@@ -130,7 +135,7 @@ func (r *ReconcileTemplate) Reconcile(request reconcile.Request) (reconcile.Resu
 
 	// add kind to objectKinds fields
 	var objectKinds []string
-	result := gjson.Get(string(convert), "spec.objects.#.kind")
+	result := gjson.Get(string(convert), "spec.objects.#.fields.kind")
 	for _, kind := range result.Array() {
 		if len(kind.String()) != 0 {
 			objectKinds = append(objectKinds, kind.String());

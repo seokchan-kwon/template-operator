@@ -8,11 +8,11 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 type ObjectSpec struct {
-	fields string `json:"-"`
+	Fields metav1.FieldsV1 `json:"fields,omitempty"`
 }
 
 type PlanSpec struct {
-	fields string `json:"-"`
+	Fields metav1.FieldsV1 `json:"fields,omitempty"`
 }
 
 type ParamSpec struct {
